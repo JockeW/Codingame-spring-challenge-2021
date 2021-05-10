@@ -152,7 +152,7 @@ class Game:
         #PLANT SEED IF I CAN AFFORD TO GROW THEM THE SAME DAY
         cost_to_plant_seed = number_of_my_seeds
         cost_to_grow_seed = 1 + number_of_my_size_1_trees
-        if self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 14:
+        if len(seed_actions) > 0 and self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 14:
             return self.plant_seed(seed_actions)
 
         #Complete first possible
