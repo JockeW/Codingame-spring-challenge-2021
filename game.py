@@ -114,7 +114,15 @@ class Game:
         seed_actions = [action for action in self.possible_actions if action.type == ActionType.SEED]
         complete_actions = [action for action in self.possible_actions if action.type == ActionType.COMPLETE]
 
-        if self.any_richness_3_seed_action(seed_actions) and self.day < 18:
+        #TODO: Get my trees that will have spooky shadow next day, based on opponents current trees.
+
+
+        #Complete tree
+        #TODO: Rework this
+        if len(complete_actions) > 0 and self.day > 12:
+            return self.complete_best_tree(complete_actions)
+
+        if self.any_richness_3_seed_action(seed_actions) and self.day < 14:
             return self.plant_seed(seed_actions)
 
         #GROW SIZE 0 TO 1 IF POSSIBLE
@@ -135,22 +143,16 @@ class Game:
         if len(grow_actions_for_size_1_trees) > 0:
             return self.grow_tree_best_richness(grow_actions_for_size_1_trees)
 
-        #Complete tree
-        #TODO: Rework
-        number_of_affordable_complete_actions = self.my_sun / 4
-        if len(complete_actions) > 0 and self.day > 12:
-            return self.complete_best_tree(complete_actions)
-
-        #Grow tree IF .....
-        if len([tree for tree in self.trees if tree.size == 0]) >= 2:
-            if len(grow_actions) > 0:
-                #print(str(len(my_trees)), file=sys.stderr)
-                return self.grow_tree_best_richness(grow_actions)
+        # #Grow tree IF .....
+        # if len([tree for tree in self.trees if tree.size == 0]) >= 2:
+        #     if len(grow_actions) > 0:
+        #         #print(str(len(my_trees)), file=sys.stderr)
+        #         return self.grow_tree_best_richness(grow_actions)
 
         #PLANT SEED IF I CAN AFFORD TO GROW THEM THE SAME DAY
         cost_to_plant_seed = number_of_my_seeds
         cost_to_grow_seed = 1 + number_of_my_size_1_trees
-        if self.my_sun >= cost_to_plant_seed + cost_to_grow_seed:
+        if self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 14:
             return self.plant_seed(seed_actions)
 
         #Complete first possible
