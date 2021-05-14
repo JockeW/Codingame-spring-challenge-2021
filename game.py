@@ -72,14 +72,17 @@ class Game:
         self.opponents_sun = 0
         self.opponent_score = 0
         self.opponent_is_waiting = 0
+        self.seeds_planted = []
 
     def plant_seed(self, seed_actions):
         target_cell_ids = [action.target_cell_id for action in seed_actions]
         target_cells = [cell for cell in self.board if cell.cell_index in target_cell_ids]
         richess_cell_for_seed = max(target_cells, key=attrgetter('richness'))
         #print('\n'+str(richess_cell_for_seed.cell_index), file=sys.stderr)
+        seed_action = next(action for action in seed_actions if action.target_cell_id == richess_cell_for_seed.cell_index)
+        self.seeds_planted.append(seed_action.target_cell_id)
 
-        return next(action for action in seed_actions if action.target_cell_id == richess_cell_for_seed.cell_index)
+        return seed_action
 
     def grow_tree_best_richness(self, grow_actions):     
         cell_indexes = [action.target_cell_id for action in grow_actions]
@@ -103,39 +106,66 @@ class Game:
         else:
             return False
 
+    def grow_planted_seeds(self, grow_actions):
+        cell_indexes = [action.target_cell_id for action in grow_actions]
+        grow_cells = [cell for cell in self.board if cell.cell_index in cell_indexes]
+        richess_cell_to_grow = max(grow_cells, key=attrgetter('richness'))
+        action = next(action for action in grow_actions if action.target_cell_id == richess_cell_to_grow.cell_index)
+        self.seeds_planted.remove(action.target_cell_id)
+        
+        return action
+        
+
     def compute_next_action(self):  
-        #log(self.day)
+        log(self.seeds_planted)
+        log(self.day)
 
         my_trees = [tree for tree in self.trees if tree.is_mine]
         number_of_my_seeds = len([tree for tree in my_trees if tree.size == 0])
         number_of_my_size_1_trees = len([tree for tree in my_trees if tree.size == 1])
 
+        number_of_my_size_3_trees = len([tree for tree in my_trees if tree.size == 3])
+
         grow_actions = [action for action in self.possible_actions if action.type == ActionType.GROW]
         seed_actions = [action for action in self.possible_actions if action.type == ActionType.SEED]
         complete_actions = [action for action in self.possible_actions if action.type == ActionType.COMPLETE]
 
+        if self.day == 2:
+            if len(grow_actions) > 0:
+                return self.grow_tree_best_richness(grow_actions)
+            elif len(seed_actions) > 0:
+                return self.plant_seed(seed_actions)
+
         #TODO: Get my trees that will have spooky shadow next day, based on opponents current trees.
 
+        #TODO: If opponent completes a tree, prioritize growing trees to size tree and complete asap
 
         #Complete tree
         #TODO: Rework this
-        if len(complete_actions) > 0 and self.day > 12:
+        if len(complete_actions) > 0 and (number_of_my_size_3_trees > 2 and self.day >= 11 or self.day > 20 or number_of_my_size_3_trees > 1 and self.day > 16):
             return self.complete_best_tree(complete_actions)
 
-        if self.any_richness_3_seed_action(seed_actions) and self.day < 14:
-            return self.plant_seed(seed_actions)
+        #Grow seeds planted last day
+        seed_grow_actions = [action for action in grow_actions if action.target_cell_id in self.seeds_planted]
+        if len(seed_grow_actions) > 0:
+            return self.grow_planted_seeds(seed_grow_actions)
 
-        #GROW SIZE 0 TO 1 IF POSSIBLE
-        seed_indexes = [tree.cell_index for tree in my_trees if tree.size == 0]
-        grow_actions_for_seeds = [action for action in grow_actions if action.target_cell_id in seed_indexes]
-        if len(grow_actions_for_seeds) > 0:
-            return self.grow_tree_best_richness(grow_actions_for_seeds)
+        cost_to_plant_seed = number_of_my_seeds
+        cost_to_grow_seed = 1 + number_of_my_size_1_trees
+        # if self.any_richness_3_seed_action(seed_actions) and self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 18 and number_of_my_seeds == 0 and number_of_my_size_1_trees < 2:
+        #     return self.plant_seed(seed_actions)
+            
+        if self.day > 1 and len(seed_actions) > 0 and self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 12 and number_of_my_seeds < 2 and number_of_my_size_1_trees < 2:
+            return self.plant_seed(seed_actions)
 
         #GROW SIZE 2 TO 3 IF POSSIBLE
         size_2_tree_indexes = [tree.cell_index for tree in my_trees if tree.size == 2]
         grow_actions_for_size_2_trees = [action for action in grow_actions if action.target_cell_id in size_2_tree_indexes]
         if len(grow_actions_for_size_2_trees) > 0:
             return self.grow_tree_best_richness(grow_actions_for_size_2_trees)
+        elif len(size_2_tree_indexes) > 0 and self.day >= 11:
+            return self.possible_actions[0]
+
 
         #GROW SIZE 1 TO 2 IF POSSIBLE
         size_1_tree_indexes = [tree.cell_index for tree in my_trees if tree.size == 1]
@@ -143,22 +173,22 @@ class Game:
         if len(grow_actions_for_size_1_trees) > 0:
             return self.grow_tree_best_richness(grow_actions_for_size_1_trees)
 
-        # #Grow tree IF .....
-        # if len([tree for tree in self.trees if tree.size == 0]) >= 2:
-        #     if len(grow_actions) > 0:
-        #         #print(str(len(my_trees)), file=sys.stderr)
-        #         return self.grow_tree_best_richness(grow_actions)
+
+
 
         #PLANT SEED IF I CAN AFFORD TO GROW THEM THE SAME DAY
-        cost_to_plant_seed = number_of_my_seeds
-        cost_to_grow_seed = 1 + number_of_my_size_1_trees
-        if len(seed_actions) > 0 and self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 14:
-            return self.plant_seed(seed_actions)
+        # cost_to_plant_seed = number_of_my_seeds
+        # cost_to_grow_seed = 1 + number_of_my_size_1_trees
+        # if self.day > 1 and len(seed_actions) > 0 and self.my_sun >= cost_to_plant_seed + cost_to_grow_seed and self.day < 12 and number_of_my_seeds == 0 and number_of_my_size_1_trees < 2:
+        #     return self.plant_seed(seed_actions)
+        
 
-        #Complete first possible
-        # complete_actions = [action for action in self.possible_actions if action.type == ActionType.COMPLETE]
-        # if len(complete_actions) > 0:
-        #     return self.complete_best_tree(complete_actions)
+        #GROW SIZE 0 TO 1 IF POSSIBLE
+        # seed_indexes = [tree.cell_index for tree in my_trees if tree.size == 0]
+        # grow_actions_for_seeds = [action for action in grow_actions if action.target_cell_id in seed_indexes]
+        # if len(grow_actions_for_seeds) > 0:
+        #     return self.grow_tree_best_richness(grow_actions_for_seeds)
+
 
 
         return self.possible_actions[0]
