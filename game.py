@@ -142,7 +142,7 @@ class Game:
 
         #Complete tree
         #TODO: Rework this
-        if len(complete_actions) > 0 and (number_of_my_size_3_trees > 2 and self.day >= 11 or self.day > 20 or number_of_my_size_3_trees > 1 and self.day > 16):
+        if len(complete_actions) > 0 and (number_of_my_size_3_trees > 2 and self.day >= 11 or self.day > 20 and len(my_trees) > 1 or self.day == 23 or number_of_my_size_3_trees > 1 and self.day > 16):
             return self.complete_best_tree(complete_actions)
 
         #Grow seeds planted last day
